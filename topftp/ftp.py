@@ -9,7 +9,7 @@ from typing import Any
 
 
 class FTP:
-    def __init__(self, host: str, user: str, password: str, **kwargs: Any):
+    def __init__(self, host: str = "", user: str = "", password: str = "", **kwargs: Any):
         self.ftp = None
         self.host = host
         self.user = user
