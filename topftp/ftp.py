@@ -8,15 +8,29 @@ from pathlib import Path
 from typing import Any
 
 
+class MyFTP_TLS(ftplib.FTP_TLS):
+    """Explicit FTPS, with shared TLS session"""
+
+    def ntransfercmd(self, cmd: str, rest: Any = None) -> tuple:
+        conn, size = ftplib.FTP.ntransfercmd(self, cmd, rest)
+        if self._prot_p:
+            conn = self.context.wrap_socket(
+                conn, server_hostname=self.host, session=self.sock.session
+            )  # this is the fix
+
+        return conn, size
+
+
 class FTP:
     def __init__(self, host: str = "", user: str = "", password: str = "", **kwargs: Any):
         self.ftp = None
         self.host = host
         self.user = user
         self.password = password
-        self.port = kwargs.get("port", 21)
+        self.port = kwargs.get("port", 0)
         self.timeout = kwargs.get("timeout", 5)
         self.silent = kwargs.get("silent", False)
+        self.use_tls = kwargs.get("use_tls", False)
         self.verbose = kwargs.get("verbose", False)
 
     def __del__(self) -> None:
@@ -36,7 +50,12 @@ class FTP:
         return f"/{path}".replace("//", "/")
 
     def connect(self, **kwargs: Any) -> Any:
-        ftp = ftplib.FTP()
+        use_tls = kwargs.get("use_tls", self.use_tls)
+        if use_tls:
+            ftp = MyFTP_TLS()
+        else:
+            ftp = ftplib.FTP()
+
         host = kwargs.get("host", self.host)
         user = kwargs.get("user", self.user)
         port = kwargs.get("port", self.port)
@@ -45,6 +64,9 @@ class FTP:
         try:
             ftp.connect(host, port, timeout)
             ftp.login(user, password)
+            if use_tls:
+                ftp.prot_p()
+
             self.ftp = ftp
             return ftp
         except Exception:
