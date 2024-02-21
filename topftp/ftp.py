@@ -5,7 +5,13 @@ import ftplib
 import traceback
 from io import BytesIO
 from pathlib import Path
+from ssl import SSLSocket
 from typing import Any
+
+
+class ReusedSslSocket(SSLSocket):
+    def unwrap(self):
+        pass
 
 
 class MyFTP_TLS(ftplib.FTP_TLS):
@@ -17,6 +23,7 @@ class MyFTP_TLS(ftplib.FTP_TLS):
             conn = self.context.wrap_socket(
                 conn, server_hostname=self.host, session=self.sock.session
             )  # this is the fix
+            conn.__class__ = ReusedSslSocket
 
         return conn, size
 
