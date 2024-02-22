@@ -9,7 +9,7 @@ from ssl import SSLSocket
 from typing import Any
 
 
-class ReusedSslSocket(SSLSocket):
+class ReusedSSLSocket(SSLSocket):
     def unwrap(self):
         pass
 
@@ -23,7 +23,7 @@ class MyFTP_TLS(ftplib.FTP_TLS):
             conn = self.context.wrap_socket(
                 conn, server_hostname=self.host, session=self.sock.session
             )  # this is the fix
-            conn.__class__ = ReusedSslSocket
+            conn.__class__ = ReusedSSLSocket
 
         return conn, size
 
@@ -107,27 +107,36 @@ class FTP:
 
         return False, None
 
-    def upload(self, local: Any, remote: str, **kwargs: Any) -> bool:
+    def upload(self, local: Any, remote: str, **kwargs: Any) -> Any:
         is_ok = False
         fp = Path(local)
-        blocksize = kwargs.get("blocksize", 8192)
-        remote_path = self.get_remote_path(f"{remote}/{fp.name}")
+        return_all = kwargs.pop("return_all", False)
+        filename = kwargs.pop("filename", "")
+        blocksize = kwargs.pop("blocksize", 8192)
+        remote_path = self.get_remote_path(f"{remote}/{filename or fp.name}")
         if fp.exists():
             with open(str(local), "rb") as fo:
-                is_ok, _ = self.run("storbinary", f"STOR {remote_path}", fo, blocksize, **kwargs)
+                is_ok, resp = self.run("storbinary", f"STOR {remote_path}", fo, blocksize, **kwargs)
 
-        return is_ok
+        return is_ok, resp if return_all else is_ok
 
-    def upload_from_string(self, text: Any, remote: str, **kwargs: Any) -> bool:
-        bio = BytesIO(bytes(str(text), encoding="utf-8"))
+    def upload_from_string(self, text: Any, remote: str, **kwargs: Any) -> Any:
         remote = self.get_remote_path(remote)
-        is_ok, _ = self.run("storbinary", f"STOR {remote}", bio, *kwargs)
-        return is_ok
+        bio = BytesIO(bytes(str(text), encoding="utf-8"))
+        return_all = kwargs.pop("return_all", False)
+        is_ok, resp = self.run("storbinary", f"STOR {remote}", bio, **kwargs)
+        return is_ok, resp if return_all else is_ok
 
-    def download(self, remote: str, local: Any, blocksize: int = 8192) -> None:
+    def download(self, remote: str, local: Any, blocksize: int = 8192) -> tuple:
+        local_path = Path(local)
         remote_path = self.get_remote_path(remote)
-        with open(local, "wb") as fo:
-            self.run("retrbinary", f"RETR {remote_path}", fo.write, blocksize)
+        if local_path.is_dir():
+            local_path = local_path / Path(remote_path).name
+
+        with open(str(local_path), "wb") as fo:
+            is_ok, resp = self.run("retrbinary", f"RETR {remote_path}", fo.write, blocksize)
+
+        return is_ok, resp
 
     def download_to_list(self, remote: str, blocksize: int = 8192) -> list:
         lines = []
@@ -147,8 +156,8 @@ class FTP:
 
         return files, folders
 
-    def delete(self, remote: str) -> None:
-        self.run("delete", self.get_remote_path(remote))
+    def delete(self, remote: str) -> tuple:
+        return self.run("delete", self.get_remote_path(remote))
 
     def get_size(self, remote: str) -> int:
         try:
