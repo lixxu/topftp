@@ -143,7 +143,7 @@ class FTP:
         remote_path = self.get_remote_path(remote)
         self.run("retrbinary", f"RETR {remote_path}", lines.append, blocksize)
         rows = [line.decode("utf-8") for line in lines]
-        return rows
+        return "".join(rows).splitlines()
 
     def listdir(self, remote: str) -> tuple:
         files = []
