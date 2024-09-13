@@ -35,6 +35,7 @@ class FTP:
         self.user = user
         self.password = password
         self.port = kwargs.get("port", 0)
+        self.pasv = kwargs.get("pasv", True)
         self.timeout = kwargs.get("timeout", 5)
         self.silent = kwargs.get("silent", False)
         self.use_tls = kwargs.get("use_tls", False)
@@ -66,10 +67,12 @@ class FTP:
         host = kwargs.get("host", self.host)
         user = kwargs.get("user", self.user)
         port = kwargs.get("port", self.port)
+        pasv = kwargs.get("pasv", self.pasv)
         password = kwargs.get("password", self.password)
         timeout = kwargs.get("timeout", self.timeout)
         try:
             ftp.connect(host, port, timeout)
+            ftp.set_pasv(pasv)
             ftp.login(user, password)
             if use_tls:
                 ftp.prot_p()
