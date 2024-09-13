@@ -54,7 +54,7 @@ class FTP:
 
     @classmethod
     def get_remote_path(cls, path: str) -> str:
-        return f"/{path}".replace("//", "/")
+        return f"/{path}".replace("//", "/").replace("//", "/")
 
     def connect(self, **kwargs: Any) -> Any:
         use_tls = kwargs.get("use_tls", self.use_tls)
@@ -108,6 +108,7 @@ class FTP:
         return False, None
 
     def upload(self, local: Any, remote: str, **kwargs: Any) -> Any:
+        resp = None
         is_ok = False
         fp = Path(local)
         return_all = kwargs.pop("return_all", False)
@@ -128,6 +129,7 @@ class FTP:
         return is_ok, resp if return_all else is_ok
 
     def download(self, remote: str, local: Any, blocksize: int = 8192) -> tuple:
+        resp = None
         local_path = Path(local)
         remote_path = self.get_remote_path(remote)
         if local_path.is_dir():
